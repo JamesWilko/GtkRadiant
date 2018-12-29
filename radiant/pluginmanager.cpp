@@ -55,6 +55,7 @@ _QERFileSystemTable g_FileSystemTable;
 _QERShadersTable g_ShadersTable;
 _QERPlugMapTable g_MapTable;
 _QERPlugMapTable g_MapTable2;
+_QERPlugMapTable g_EntMapTable;
 _QEREntityTable g_EntityTable;
 _EClassTable g_EClassDefTable;
 
@@ -79,6 +80,7 @@ filetype_t g_pattern_modelobj( "obj models", "*.obj" );
 filetype_t g_pattern_soundwav( "PCM sound files", "*.wav" );
 filetype_t g_pattern_ogg( "OGG sound files", "*.ogg" );
 filetype_t g_pattern_regq3( "quake3 region", "*.reg" );
+filetype_t g_pattern_titanfall_entmap( "Titanfall 2 ent maps", "*.ent" );
 
 #include <map>
 
@@ -140,6 +142,7 @@ void InitFileTypes(){
 	//GetFileTypeRegistry()->addType("project", g_pattern_projqe4v2);
 	GetFileTypeRegistry()->addType( "project", g_pattern_projxml );
 
+	GetFileTypeRegistry()->addType( MAP_MAJOR, g_pattern_titanfall_entmap );
 	GetFileTypeRegistry()->addType( MAP_MAJOR, g_pattern_mapq3 );
 	GetFileTypeRegistry()->addType( MAP_MAJOR, g_pattern_mapxml );
 
@@ -472,6 +475,9 @@ void CSynapseClientRadiant::ImportMap( IDataStream *in, CPtrArray *ents, const c
 	}
 	else if (strcasecmp( type,"xmap" ) == 0 ) {
 		g_MapTable2.m_pfnMap_Read( in, ents );
+	}
+	else if( strcasecmp( type, "ent" ) == 0 ) {
+		g_MapTable.m_pfnMap_Read( in, ents );
 	}
 	else{
 		Sys_FPrintf( SYS_WRN, "WARNING: no module found for map interface type '%s'\n", type );

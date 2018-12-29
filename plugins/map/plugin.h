@@ -60,7 +60,10 @@ extern void *g_pRadiantWnd;
 #define MAPVERSION_Q3 1
 #define MAPVERSION_HL 2
 #define MAPVERSION_Q2 3
+#define MAPVERSION_TTF2 4
 //#define MAPVERSION_Q1
+
+#define ENTMAPVERSION_TTF2 "ENTITIES01"
 
 #define MAP_NOERROR 0
 #define MAP_ABORTED 1

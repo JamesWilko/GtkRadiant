@@ -68,6 +68,7 @@ extern "C" CSynapseClient * SYNAPSE_DLL_EXPORT Synapse_EnumerateInterfaces( cons
 	g_SynapseClient.AddAPI( MAP_MAJOR, "mapq3", sizeof( _QERPlugMapTable ) );
 	g_SynapseClient.AddAPI( MAP_MAJOR, "maphl", sizeof( _QERPlugMapTable ) );
 	g_SynapseClient.AddAPI( MAP_MAJOR, "mapq2", sizeof( _QERPlugMapTable ) );
+	g_SynapseClient.AddAPI( MAP_MAJOR, "mapttf2", sizeof( _QERPlugMapTable ) );
 	g_SynapseClient.AddAPI( RADIANT_MAJOR, NULL, sizeof( g_FuncTable ), SYN_REQUIRE, &g_FuncTable );
 	g_SynapseClient.AddAPI( SCRIPLIB_MAJOR, NULL, sizeof( g_ScripLibTable ), SYN_REQUIRE, &g_ScripLibTable );
 

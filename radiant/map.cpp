@@ -581,10 +581,23 @@ void Map_LoadFile( const char *filename ){
 	}
 
 	if ( !world_entity ) {
-		Sys_Printf( "No worldspawn in map.\n" );
-		Map_New();
-		Sys_EndWait();
-		return;
+		if( true )
+		{
+			Sys_Printf( "No worldspawn in map, created default one.\n" );
+
+			world_entity = (entity_s*) qmalloc( sizeof( *world_entity ) );
+			world_entity->brushes.onext =
+				world_entity->brushes.oprev = &world_entity->brushes;
+			SetKeyValue( world_entity, "classname", "worldspawn" );
+			world_entity->eclass = Eclass_ForName( "worldspawn", true );
+		}
+		else
+		{
+			Sys_Printf( "No worldspawn in map.\n" );
+			Map_New();
+			Sys_EndWait();
+			return;
+		}
 	}
 	finish = clock();
 	elapsed_time = (double)( finish - start ) / CLOCKS_PER_SEC;

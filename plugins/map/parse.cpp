@@ -600,6 +600,12 @@ void Map_Read( IDataStream *in, CPtrArray *map ){
 
 	unsigned long len = in->GetLength();
 	buf = new char[len + 1];
+
+	if( g_MapVersion == MAPVERSION_HL ) // @todo: MAPVERSION_TTF2
+	{
+		in->Seek( strlen(ENTMAPVERSION_TTF2), 0 );
+	}
+
 	in->Read( buf, len );
 	buf[len] = '\0';
 	StartTokenParsing( buf );
