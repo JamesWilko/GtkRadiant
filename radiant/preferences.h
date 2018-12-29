@@ -218,6 +218,7 @@ void Dump();
 #define WOLF_GAME "wolf.game"
 #define Q1_GAME "q1.game"
 #define UNVANQUISHED_GAME "unvanquished.game"
+#define TITANFALL2_GAME "titanfall2.game"
 
 #define Q3_PACK "Q3Pack"
 #define URT_PACK "UrTPack"
@@ -235,6 +236,7 @@ void Dump();
 #define WOLF_PACK "WolfPack"
 #define Q1_PACK "Q1Pack"
 #define UNVANQUISHED_PACK "UnvanquishedPack"
+#define TITANFALL2_PACK "Titanfall2Pack"
 
 class CGameInstall : public Dialog {
 public:
@@ -265,6 +267,7 @@ public:
 	GAME_WOLF,
 	GAME_Q1,
 	GAME_UNVANQUISHED,
+	GAME_TITANFALL2,
 	GAME_COUNT
   };
 

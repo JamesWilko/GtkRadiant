@@ -3485,6 +3485,9 @@ void CGameInstall::BuildDialog() {
 		case GAME_UNVANQUISHED:
 			gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT( game_select_combo ), _( "Unvanquished" ) );
 			break;
+		case GAME_TITANFALL2:
+			gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT( game_select_combo ), _( "Titanfall 2" ) );
+			break;
 		}
 		iGame++;
 	}
@@ -3654,6 +3657,10 @@ void CGameInstall::Run() {
 	case GAME_UNVANQUISHED:
 		gamePack = UNVANQUISHED_PACK;
 		gameFilePath += UNVANQUISHED_GAME;
+		break;
+	case GAME_TITANFALL2:
+		gamePack = TITANFALL2_PACK;
+		gameFilePath += TITANFALL2_GAME;
 		break;
 	default:
 		Error( "Invalid game selected: %d", m_availGames[ m_nComboSelect ] );
@@ -3856,6 +3863,21 @@ void CGameInstall::Run() {
 		}
 		break;
 	}
+	case GAME_TITANFALL2: {
+		fprintf( fg, "  prefix=\".titanfall2/titanfall2/home\"\n" );
+		fprintf( fg, "  basegame=\"respawn\"\n" );
+		// Hardcoded fix for "missing" shaderlist in gamepack
+		/*
+		Str dest = m_strEngine.GetBuffer();
+		dest += "/basettf/scripts/shaderlist.txt";
+		if( CheckFile( dest.GetBuffer() ) != PATH_FILE ) {
+			Str source = gameInstallPath.GetBuffer();
+			source += "basettf/scripts/default_shaderlist.txt";
+			radCopyFile( source.GetBuffer(), dest.GetBuffer() );
+		}
+		*/
+		break;
+	}
 	}
 	fprintf( fg, "/>\n" );
 	fclose( fg );
@@ -3922,6 +3944,9 @@ void CGameInstall::ScanGames() {
 		}
 		if ( stricmp( dirname, UNVANQUISHED_PACK ) == 0) {
 			m_availGames[ iGame++ ] = GAME_UNVANQUISHED;
+		}
+		if( stricmp( dirname, TITANFALL2_PACK ) == 0 ) {
+			m_availGames[iGame++] = GAME_TITANFALL2;
 		}
 	}
 	Sys_Printf( "No installable games found in: %s\n",
