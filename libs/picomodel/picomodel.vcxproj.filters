@@ -80,5 +80,8 @@
     <ClCompile Include="pm_terrain.c">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="pm_smd.c">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

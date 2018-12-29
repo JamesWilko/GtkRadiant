@@ -51,7 +51,7 @@
  * - process 'mtllib' rather than using <model>.mtl
  */
 /* uncomment when debugging this module */
-/* #define DEBUG_PM_OBJ */
+#define DEBUG_PM_OBJ
 /* #define DEBUG_PM_OBJ_EX */
 
 /* this holds temporary vertex data read by parser */
