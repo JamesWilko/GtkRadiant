@@ -115,11 +115,14 @@ void CSpriteModel::Draw( int state, int rflags ) const {
 	g_QglTable.m_pfn_qglPolygonMode( GL_FRONT, GL_FILL );
 
 	// start billboarding
-	vec3_t origin, angles;
-	g_CameraTable.m_pfnGetCamera( origin, angles );
-	g_QglTable.m_pfn_qglPushMatrix();
-	g_QglTable.m_pfn_qglRotatef( -angles[1], 0, 0, -1 ); // yaw
-	g_QglTable.m_pfn_qglRotatef( -angles[0], 0, 1, 0 ); // pitch
+	bool use_billboarding = ( state & DRAW_GL_TEXTURE_2D );
+	if( use_billboarding ) {
+		vec3_t origin, angles;
+		g_CameraTable.m_pfnGetCamera( origin, angles );
+		g_QglTable.m_pfn_qglPushMatrix();
+		g_QglTable.m_pfn_qglRotatef( -angles[1], 0, 0, -1 ); // yaw
+		g_QglTable.m_pfn_qglRotatef( -angles[0], 0, 1, 0 ); // pitch
+	}
 
 	// draw the sprite
 #if 0
@@ -152,8 +155,10 @@ void CSpriteModel::Draw( int state, int rflags ) const {
 #endif
 
 	// end billboard
-	g_QglTable.m_pfn_qglPopMatrix();
-
+	if( use_billboarding ) {
+		g_QglTable.m_pfn_qglPopMatrix();
+	}
+	
 	g_QglTable.m_pfn_qglBindTexture( GL_TEXTURE_2D, 0 );
 	g_QglTable.m_pfn_qglPopAttrib();
 }
