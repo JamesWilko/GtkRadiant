@@ -154,7 +154,7 @@ static const char *PLUGIN_COMMANDS = "About";
 static const char *PLUGIN_ABOUT = "Sprite Model loading module v0.2 for GTKRadiant\n\n"
 								  "By Hydra!";
 
-const char *supportedmodelformats[] = {"spr","bmp","tga","jpg","hlw",NULL}; // NULL is list delimiter
+const char *supportedmodelformats[] = { "png", "spr", "bmp", "tga", "jpg", "hlw", NULL }; // NULL is list delimiter
 
 void *g_pMainWidget = NULL;
 
