@@ -142,6 +142,7 @@
 _QERFuncTable_1 g_FuncTable;
 _QERQglTable g_QglTable;
 _QERShadersTable g_ShadersTable;
+_QERCameraTable g_CameraTable;
 
 // =============================================================================
 // plugin implementation
@@ -232,6 +233,7 @@ extern "C" CSynapseClient * SYNAPSE_DLL_EXPORT Synapse_EnumerateInterfaces( cons
 	g_SynapseClient.AddAPI( RADIANT_MAJOR, NULL, sizeof( g_FuncTable ), SYN_REQUIRE, &g_FuncTable );
 	g_SynapseClient.AddAPI( QGL_MAJOR, NULL, sizeof( g_QglTable ), SYN_REQUIRE, &g_QglTable );
 	g_SynapseClient.AddAPI( SHADERS_MAJOR, "*", sizeof( g_ShadersTable ), SYN_REQUIRE, &g_ShadersTable );
+	g_SynapseClient.AddAPI( CAMERA_MAJOR, NULL, sizeof( g_CameraTable ), SYN_REQUIRE, &g_CameraTable );
 
 	return &g_SynapseClient;
 }

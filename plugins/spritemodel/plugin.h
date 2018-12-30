@@ -50,10 +50,12 @@
 #include "igl.h"
 #include "ifilesystem.h"
 #include "ishaders.h"
+#include "icamera.h"
 
 extern _QERFuncTable_1 g_FuncTable;
 extern _QERQglTable g_QglTable;
 extern _QERShadersTable g_ShadersTable;
+extern _QERCameraTable g_CameraTable;
 
 #define QERApp_Shader_ForName g_ShadersTable.m_pfnShader_ForName
 #define QERApp_Try_Shader_ForName g_ShadersTable.m_pfnTry_Shader_ForName

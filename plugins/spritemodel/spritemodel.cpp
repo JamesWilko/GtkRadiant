@@ -110,15 +110,18 @@ void CSpriteModel::Draw( int state, int rflags ) const {
 
 	//g_QglTable.m_pfn_qglEnable (GL_TEXTURE_2D); // FIXME: ? this forces textures, even in wireframe mode, bad... ?
 
-	g_QglTable.m_pfn_qglAlphaFunc( GL_LESS, 1 );
+	g_QglTable.m_pfn_qglAlphaFunc( GL_GREATER, 0 );
 	g_QglTable.m_pfn_qglEnable( GL_ALPHA_TEST );
+	g_QglTable.m_pfn_qglPolygonMode( GL_FRONT, GL_FILL );
 
-	// get rid of this when sprite always faces camera
-	g_QglTable.m_pfn_qglDisable( GL_CULL_FACE );
-	g_QglTable.m_pfn_qglPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+	// start billboarding
+	vec3_t origin, angles;
+	g_CameraTable.m_pfnGetCamera( origin, angles );
+	g_QglTable.m_pfn_qglPushMatrix();
+	g_QglTable.m_pfn_qglRotatef( -angles[1], 0, 0, -1 ); // yaw
+	g_QglTable.m_pfn_qglRotatef( -angles[0], 0, 1, 0 ); // pitch
 
 	// draw the sprite
-
 #if 0
 	// using x/y axis, it appears FLAT without the proper transform and rotation.
 
@@ -136,16 +139,20 @@ void CSpriteModel::Draw( int state, int rflags ) const {
 
 	// so draw it using y/z instead.
 	g_QglTable.m_pfn_qglBegin( GL_QUADS );
-	g_QglTable.m_pfn_qglTexCoord2f( 0,0 );
-	g_QglTable.m_pfn_qglVertex3f( 0,w,h );
-	g_QglTable.m_pfn_qglTexCoord2f( 1,0 );
-	g_QglTable.m_pfn_qglVertex3f( 0,0 - w,h );
-	g_QglTable.m_pfn_qglTexCoord2f( 1,1 );
-	g_QglTable.m_pfn_qglVertex3f( 0,0 - w,0 - h );
-	g_QglTable.m_pfn_qglTexCoord2f( 0,1 );
-	g_QglTable.m_pfn_qglVertex3f( 0,w,0 - h );
+	g_QglTable.m_pfn_qglTexCoord2f( 0, 0 );
+	g_QglTable.m_pfn_qglVertex3f( 0, w, h );
+	g_QglTable.m_pfn_qglTexCoord2f( 1, 0 );
+	g_QglTable.m_pfn_qglVertex3f( 0, 0 - w, h );
+	g_QglTable.m_pfn_qglTexCoord2f( 1, 1 );
+	g_QglTable.m_pfn_qglVertex3f( 0, 0 - w, 0 - h );
+	g_QglTable.m_pfn_qglTexCoord2f( 0, 1 );
+	g_QglTable.m_pfn_qglVertex3f( 0, w, 0 - h );
 	g_QglTable.m_pfn_qglEnd();
+
 #endif
+
+	// end billboard
+	g_QglTable.m_pfn_qglPopMatrix();
 
 	g_QglTable.m_pfn_qglBindTexture( GL_TEXTURE_2D, 0 );
 	g_QglTable.m_pfn_qglPopAttrib();
