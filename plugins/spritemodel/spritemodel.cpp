@@ -48,7 +48,14 @@ void LoadSpriteModel( entity_interfaces_t *interfaces, const char *name ){
 	interfaces->pSelect = NULL;
 	interfaces->pEdit = NULL;
 	model->DecRef();
-
+	if( strstr( name, ".cube." ) != nullptr )
+	{
+		model->SetSpriteType( SPRITE_TYPE_CUBE );
+	}
+	else
+	{
+		model->SetSpriteType( SPRITE_TYPE_BILLBOARD );
+	}
 }
 
 void CSpriteModel::Construct( IShader *pShader ){
@@ -94,15 +101,12 @@ void CSpriteModel::Draw( int state, int rflags ) const {
    g_QglTable.m_pfn_qglEnd ();
  */
 
-	qtexture_t    *q = m_pShader->getTexture();
-
-	// convert pixels to units and divide in half again so we draw in the middle
-	// of the bbox.
-	int h = q->height / 8;
-	int w = q->width / 8;
+	qtexture_t *q = m_pShader->getTexture();
 
 	// setup opengl stuff
-
+	g_QglTable.m_pfn_qglBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+	g_QglTable.m_pfn_qglEnable( GL_BLEND );
+	g_QglTable.m_pfn_qglClearColor( 0.0, 0.0, 0.0, 0.0 );
 	g_QglTable.m_pfn_qglPushAttrib( GL_ALL_ATTRIB_BITS ); // GL_ENABLE_BIT
 	//g_QglTable.m_pfn_qglColor3f (1,1,1);   //testing
 	//g_QglTable.m_pfn_qglColor4f (1,1,1,1); //testing
@@ -110,9 +114,33 @@ void CSpriteModel::Draw( int state, int rflags ) const {
 
 	//g_QglTable.m_pfn_qglEnable (GL_TEXTURE_2D); // FIXME: ? this forces textures, even in wireframe mode, bad... ?
 
-	g_QglTable.m_pfn_qglAlphaFunc( GL_GREATER, 0 );
+	g_QglTable.m_pfn_qglAlphaFunc( GL_GREATER, 2.0f / 255.0f );
 	g_QglTable.m_pfn_qglEnable( GL_ALPHA_TEST );
 	g_QglTable.m_pfn_qglPolygonMode( GL_FRONT, GL_FILL );
+
+	switch( spriteType )
+	{
+	case SPRITE_TYPE_BILLBOARD:
+	default:
+		DrawBillboard( state, rflags );
+		break;
+	case SPRITE_TYPE_CUBE:
+		DrawCube( state, rflags );
+		break;
+	}
+
+	g_QglTable.m_pfn_qglBindTexture( GL_TEXTURE_2D, 0 );
+	g_QglTable.m_pfn_qglPopAttrib();
+}
+
+void CSpriteModel::DrawBillboard( int state, int rflags ) const
+{
+	qtexture_t *q = m_pShader->getTexture();
+
+	// convert pixels to units and divide in half again so we draw in the middle
+	// of the bbox.
+	int h = q->height / 8;
+	int w = q->width / 8;
 
 	// start billboarding
 	bool use_billboarding = ( state & DRAW_GL_TEXTURE_2D );
@@ -129,13 +157,13 @@ void CSpriteModel::Draw( int state, int rflags ) const {
 	// using x/y axis, it appears FLAT without the proper transform and rotation.
 
 	g_QglTable.m_pfn_qglBegin( GL_QUADS );
-	g_QglTable.m_pfn_qglTexCoord2f( 0,0 );
-	g_QglTable.m_pfn_qglVertex3f( 0 - w,0 - h, 0 );
-	g_QglTable.m_pfn_qglTexCoord2f( 1,0 );
-	g_QglTable.m_pfn_qglVertex3f( w,0 - h, 0 );
-	g_QglTable.m_pfn_qglTexCoord2f( 1,1 );
+	g_QglTable.m_pfn_qglTexCoord2f( 0, 0 );
+	g_QglTable.m_pfn_qglVertex3f( 0 - w, 0 - h, 0 );
+	g_QglTable.m_pfn_qglTexCoord2f( 1, 0 );
+	g_QglTable.m_pfn_qglVertex3f( w, 0 - h, 0 );
+	g_QglTable.m_pfn_qglTexCoord2f( 1, 1 );
 	g_QglTable.m_pfn_qglVertex3f( w, h, 0 );
-	g_QglTable.m_pfn_qglTexCoord2f( 0,1 );
+	g_QglTable.m_pfn_qglTexCoord2f( 0, 1 );
 	g_QglTable.m_pfn_qglVertex3f( 0 - w, h, 0 );
 	g_QglTable.m_pfn_qglEnd();
 #else
@@ -158,9 +186,74 @@ void CSpriteModel::Draw( int state, int rflags ) const {
 	if( use_billboarding ) {
 		g_QglTable.m_pfn_qglPopMatrix();
 	}
-	
-	g_QglTable.m_pfn_qglBindTexture( GL_TEXTURE_2D, 0 );
-	g_QglTable.m_pfn_qglPopAttrib();
+}
+
+void CSpriteModel::DrawCube( int state, int rflags ) const
+{
+	qtexture_t    *q = m_pShader->getTexture();
+
+	// convert pixels to units and divide in half again so we draw in the middle
+	// of the bbox.
+	int h = q->height / 8;
+	int w = q->width / 8;
+
+	g_QglTable.m_pfn_qglBegin( GL_QUADS );
+
+	g_QglTable.m_pfn_qglTexCoord2f( 1, 1 );
+	g_QglTable.m_pfn_qglVertex3f( w, w, -h );
+	g_QglTable.m_pfn_qglTexCoord2f( 0, 1 );
+	g_QglTable.m_pfn_qglVertex3f( w, -w, -h );
+	g_QglTable.m_pfn_qglTexCoord2f( 0, 0 );
+	g_QglTable.m_pfn_qglVertex3f( w, -w, h );
+	g_QglTable.m_pfn_qglTexCoord2f( 1, 0 );
+	g_QglTable.m_pfn_qglVertex3f( w, w, h );
+
+	g_QglTable.m_pfn_qglTexCoord2f( 0, 0 );
+	g_QglTable.m_pfn_qglVertex3f( -w, w, h );
+	g_QglTable.m_pfn_qglTexCoord2f( 1, 0 );
+	g_QglTable.m_pfn_qglVertex3f( -w, 0 - w, h );
+	g_QglTable.m_pfn_qglTexCoord2f( 1, 1 );
+	g_QglTable.m_pfn_qglVertex3f( -w, 0 - w, 0 - h );
+	g_QglTable.m_pfn_qglTexCoord2f( 0, 1 );
+	g_QglTable.m_pfn_qglVertex3f( -w, w, 0 - h );
+
+	g_QglTable.m_pfn_qglTexCoord2f( 1, 1 );
+	g_QglTable.m_pfn_qglVertex3f( w, -w, -h );
+	g_QglTable.m_pfn_qglTexCoord2f( 0, 1 );
+	g_QglTable.m_pfn_qglVertex3f( -w, -w, -h );
+	g_QglTable.m_pfn_qglTexCoord2f( 0, 0 );
+	g_QglTable.m_pfn_qglVertex3f( -w, -w, h );
+	g_QglTable.m_pfn_qglTexCoord2f( 1, 0 );
+	g_QglTable.m_pfn_qglVertex3f( w, -w, h );
+
+	g_QglTable.m_pfn_qglTexCoord2f( 0, 0 );
+	g_QglTable.m_pfn_qglVertex3f( w, w, h );
+	g_QglTable.m_pfn_qglTexCoord2f( 1, 0 );
+	g_QglTable.m_pfn_qglVertex3f( -w, w, h );
+	g_QglTable.m_pfn_qglTexCoord2f( 1, 1 );
+	g_QglTable.m_pfn_qglVertex3f( -w, w, -h );
+	g_QglTable.m_pfn_qglTexCoord2f( 0, 1 );
+	g_QglTable.m_pfn_qglVertex3f( w, w, -h );
+
+	g_QglTable.m_pfn_qglTexCoord2f( 0, 0 );
+	g_QglTable.m_pfn_qglVertex3f( w, h, -h );
+	g_QglTable.m_pfn_qglTexCoord2f( 1, 0 );
+	g_QglTable.m_pfn_qglVertex3f( -w, h, -h );
+	g_QglTable.m_pfn_qglTexCoord2f( 1, 1 );
+	g_QglTable.m_pfn_qglVertex3f( -w, -h, -h );
+	g_QglTable.m_pfn_qglTexCoord2f( 0, 1 );
+	g_QglTable.m_pfn_qglVertex3f( w, -h, -h );
+
+	g_QglTable.m_pfn_qglTexCoord2f( 1, 1 );
+	g_QglTable.m_pfn_qglVertex3f( w, -h, h );
+	g_QglTable.m_pfn_qglTexCoord2f( 0, 1 );
+	g_QglTable.m_pfn_qglVertex3f( -w, -h, h );
+	g_QglTable.m_pfn_qglTexCoord2f( 0, 0 );
+	g_QglTable.m_pfn_qglVertex3f( -w, h, h );
+	g_QglTable.m_pfn_qglTexCoord2f( 1, 0 );
+	g_QglTable.m_pfn_qglVertex3f( w, h, h );
+
+	g_QglTable.m_pfn_qglEnd();
 }
 
 /*

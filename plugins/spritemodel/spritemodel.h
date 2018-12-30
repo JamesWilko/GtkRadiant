@@ -29,6 +29,9 @@
 
 #include "plugin.h"
 
+#define SPRITE_TYPE_BILLBOARD 1
+#define SPRITE_TYPE_CUBE 2
+
 /*! i guess a description should go here... */
 class CSpriteModel : public IRender //, public ISelect
 {
@@ -43,8 +46,13 @@ void DecRef() {
 	}
 }
 
+void SetSpriteType( int type ) { spriteType = type; }
+
 //IRender
 void Draw( int state, int rflags ) const;
+void DrawBillboard( int state, int rflags ) const;
+void DrawCube( int state, int rflags ) const;
+
 const bool IsModelNotNull() const { return true; }
 const aabb_t *GetAABB() const { return &m_BBox; }
 
@@ -59,4 +67,5 @@ IShader *m_pShader;
 private:
 int refCount;
 aabb_t m_BBox;
+int spriteType;
 };
