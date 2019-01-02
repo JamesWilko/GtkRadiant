@@ -1351,6 +1351,21 @@ static void continent_ui_callback_realize( GtkWidget *widget, gpointer data )
 	continent_ui_callback_update_selection( gtk_tree_view_get_selection( GTK_TREE_VIEW( widget ) ), data );
 }
 
+static gint continent_ui_callback_button_press( GtkWidget *widget, GdkEventButton *event, gpointer data )
+{
+	if( event->type == GDK_2BUTTON_PRESS )
+	{
+		if( edit_continent )
+		{
+			g_qeglobals.active_continent = edit_continent;
+
+			Continent_UpdateGuiList();
+		}
+		return TRUE;
+	}
+	return FALSE;
+}
+
 static void continent_ui_callback_delete( GtkWidget *widget, gpointer data )
 {
 	if( edit_continent )
@@ -1863,6 +1878,7 @@ void GroupDlg::Create(){
 									GtkTreeSelection* selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( view ) );
 									g_signal_connect( G_OBJECT( selection ), "changed", G_CALLBACK( continent_ui_callback_update_selection ), dialog );
 									g_signal_connect( G_OBJECT( view ), "realize", G_CALLBACK( continent_ui_callback_realize ), dialog );
+									g_signal_connect( G_OBJECT( view ), "button-press-event", G_CALLBACK( continent_ui_callback_button_press ), NULL );
 								}
 								gtk_container_add( GTK_CONTAINER( scr ), view );
 								gtk_widget_show( view );
