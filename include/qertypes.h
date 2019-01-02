@@ -34,6 +34,8 @@
 #include <GL/gl.h>
 
 #include "str.h"
+#include <string>
+#include <vector>
 
 #ifdef _WIN32
 #define PATH_MAX 260
@@ -561,6 +563,7 @@ extern eclass_t    *eclass;
 #define W_YZ          0x0400  //--|
 #define W_GROUP       0x0800
 #define W_MEDIA       0x1000
+#define W_CONTINENT   0x1200
 #define W_ALL           0xFFFFFFFF
 
 // used in some Drawing routines
@@ -664,6 +667,12 @@ struct entity_interfaces_t
 };
 // MODEL END
 
+typedef struct continent_s
+{
+	std::string name;
+	std::string filename;
+} continent_t;
+
 typedef struct entity_s
 {
 	struct entity_s   *prev, *next;
@@ -677,6 +686,7 @@ typedef struct entity_s
 
 	int undoId, redoId, entityId;           // used for undo/redo
 	vec3_t origin;
+	continent_t *continent;
 	eclass_t  *eclass;
 	epair_t       *epairs;
 	entity_interfaces_t model;
@@ -780,6 +790,9 @@ typedef struct
 	int d_num_entities;
 
 	entity_t *d_project_entity;
+
+	std::vector<continent_t *> d_continents;
+	continent_t * active_continent;
 
 	// defines the boundaries of the current work area
 	// is used to guess brushes and drop points third coordinate when creating from 2D view

@@ -191,6 +191,8 @@ void Map_Free( void ){
 		Entity_Free( world_entity );
 	}
 	world_entity = NULL;
+
+	Continent_DeleteAll();
 }
 
 entity_t *AngledEntity(){
@@ -497,6 +499,12 @@ void Map_ImportEntities( CPtrArray *ents, bool bAddSelected = false ){
 				}
 			}
 
+			// set the continent when loading an entity
+			if( g_qeglobals.active_continent )
+			{
+				e->continent = g_qeglobals.active_continent;
+			}
+
 			// add the entity to the end of the entity list
 			Entity_AddToList( e, &entities );
 			g_qeglobals.d_num_entities++;
@@ -564,6 +572,7 @@ void Map_LoadFile( const char *filename ){
 	// but opening as text confuses the scriptlib parser
 	// this may be a problem if we "rb" and use the XML parser, might have an incompatibility
 	if ( file.Open( filename, "rb" ) ) {
+		Continent_New( filename, filename, true );
 		Map_Import( &file, type );
 	}
 	else{
@@ -844,6 +853,7 @@ void Map_SaveFile( const char *filename, qboolean use_region ){
 void Map_New( void ){
 	Sys_Printf( "Map_New\n" );
 	Map_Free();
+	Continent_New( "new_continent", "New Continent", true );
 
 	strcpy( currentmap, "unnamed.map" );
 	Sys_SetTitle( currentmap );
@@ -1213,6 +1223,7 @@ void Map_ImportFile( const char *filename ){
 	}
 	/*!\todo Resolve "r" problem in scriptlib" */
 	if ( file.Open( filename, "rb" ) ) {
+		Continent_New( filename, filename, true );
 		Map_Import( &file, type, true );
 	}
 	else{
@@ -1309,4 +1320,91 @@ void Region_SpawnPoint( FILE *f ){
 			 (int)g_pParentWnd->GetCamWnd()->Camera()->origin[2] );
 	fprintf( f, "\"angle\" \"%i\"\n", (int)g_pParentWnd->GetCamWnd()->Camera()->angles[YAW] );
 	fprintf( f, "}\n" );
+}
+
+void Continent_New( const char *filename, const char *name, bool bSetActive )
+{
+	// Create a new continent
+	continent_t * newContinent = new continent_t();
+	newContinent->filename = filename;
+	if( name == nullptr )
+	{
+		newContinent->name = newContinent->filename.substr( newContinent->filename.find_last_of( "/\\" ) + 1 );
+	}
+	else
+	{
+		newContinent->name = name;
+	}
+
+	// Add it to the global continents list
+	g_qeglobals.d_continents.push_back( newContinent );
+
+	// Set it active and update the gui
+	if( bSetActive )
+	{
+		Continent_SetActive( newContinent );
+	}
+	else
+	{
+		Continent_UpdateGuiList();
+	}
+}
+
+void Continent_SetActive( continent_t * continent )
+{
+	g_qeglobals.active_continent = continent;
+	Continent_UpdateGuiList();
+}
+
+void Continent_Delete( continent_t * continent )
+{
+	if( g_qeglobals.d_continents.size() <= 1 )
+	{
+		return;
+	}
+
+	for(int i = g_qeglobals.d_continents.size() - 1; i >= 0; --i )
+	{
+		if( continent == g_qeglobals.d_continents[i] )
+		{
+			g_qeglobals.d_continents.erase( g_qeglobals.d_continents.begin() + i );
+		}
+	}
+	if( g_qeglobals.active_continent == continent )
+	{
+		g_qeglobals.active_continent = nullptr;
+	}
+	delete continent;
+
+	Continent_UpdateGuiList();
+}
+
+void Continent_DeleteAll()
+{
+	for( continent_t * continent : g_qeglobals.d_continents )
+	{
+		delete continent;
+	}
+	g_qeglobals.d_continents.clear();
+	g_qeglobals.active_continent = nullptr;
+
+	Continent_UpdateGuiList();
+}
+
+void Continent_UpdateGuiList()
+{
+	gtk_list_store_clear( g_qeglobals_gui.d_continents );
+
+	for( continent_t * continent : g_qeglobals.d_continents )
+	{
+		std::string continentName = continent->name;
+		if( g_qeglobals.active_continent == continent )
+		{
+			continentName += " [Active]";
+		}
+
+		GtkTreeIter iter;
+		gtk_list_store_append( g_qeglobals_gui.d_continents, &iter );
+		gtk_list_store_set( g_qeglobals_gui.d_continents, &iter, 0, (gchar*) continentName.c_str(), 1, continent, -1 );
+	}
 }

@@ -69,3 +69,9 @@ void Region_SpawnPoint( FILE *f );
 
 void Map_Import( IDataStream *in, const char* type, bool bAddSelected = false );
 void Map_Export( IDataStream *out, const char* type, bool bRegionOnly = false, bool bSelectedOnly = false );
+
+void Continent_New( const char *filename, const char *name = nullptr, bool bSetActive = false );
+void Continent_SetActive( continent_t * continent );
+void Continent_Delete( continent_t * continent );
+void Continent_DeleteAll();
+void Continent_UpdateGuiList();

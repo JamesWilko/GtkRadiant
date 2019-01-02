@@ -194,6 +194,7 @@ typedef struct
 	GtkWidget *d_texture;   // d_hwndTexture;
 	GtkWidget *d_texture_scroll;
 	GtkWidget *d_z;         // d_hwndZ;
+	GtkListStore *d_continents;
 
 } QEGlobals_GUI_t;
 

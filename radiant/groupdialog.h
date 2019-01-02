@@ -75,13 +75,23 @@ enum
 	EntAssignModels,
 	EntTab,
 
+	EntContinent,
+
 	EntLast,
 };
 
 extern GtkWidget* EntWidgets[EntLast];
-
 //extern int rgIds[EntLast];
 
+enum
+{
+	ContinentList,
+	ContinentFilename,
+	ContinentName,
+
+	ContinentLast,
+};
+extern GtkWidget* ContinentWidgets[ContinentLast];
 
 class GroupDlg
 {

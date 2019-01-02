@@ -34,11 +34,14 @@
 #include "stdafx.h"
 #include "groupdialog.h"
 
-GtkWidget*  EntWidgets[EntLast];
+GtkWidget* EntWidgets[EntLast];
+GtkWidget* ContinentWidgets[ContinentLast];
+
 int inspector_mode;                     // W_TEXTURE, W_ENTITY, or W_CONSOLE
 qboolean multiple_entities;
 qboolean disable_spawn_get = false;
 entity_t        *edit_entity;
+continent_t *edit_continent;
 /*
    static GdkPixmap *tree_pixmaps[7];
    static GdkBitmap *tree_masks[7];
@@ -135,9 +138,38 @@ void SetKeyValuePairs( bool bClearMD3 ){
 		gtk_list_store_append( store, &iter );
 		gtk_list_store_set( store, &iter, 0, epair->key, 1, epair->value, -1 );
 	}
+	// @todo: add remaining keys with defaults?
 
 	gtk_entry_set_text( GTK_ENTRY( EntWidgets[EntKeyField] ), strKey.GetBuffer() );
 	gtk_entry_set_text( GTK_ENTRY( EntWidgets[EntValueField] ), strVal.GetBuffer() );
+	
+	// Repopulate the continents list
+	GList * children = gtk_container_get_children( GTK_CONTAINER( EntWidgets[EntContinent] ) );
+	for( int i = g_list_length( children ); i >= 0; --i )
+	{
+		gtk_combo_box_text_remove( GTK_COMBO_BOX_TEXT( EntWidgets[EntContinent] ), i );
+	}
+	for( continent_t * continent : g_qeglobals.d_continents )
+	{
+		gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT( EntWidgets[EntContinent] ), continent->name.c_str() );
+	}
+
+	// Set the continent
+	if( edit_entity->continent != nullptr )
+	{
+		for( int i = 0; i < g_qeglobals.d_continents.size(); ++i )
+		{
+			if( edit_entity->continent == g_qeglobals.d_continents[i] )
+			{
+				gtk_combo_box_set_active( GTK_COMBO_BOX( EntWidgets[EntContinent] ), i );
+				break;
+			}
+		}
+	}
+	else
+	{
+		gtk_combo_box_set_active( GTK_COMBO_BOX( EntWidgets[EntContinent] ), -1 );
+	}
 
 	Sys_UpdateWindows( W_CAMERA | W_XY );
 }
@@ -669,9 +701,12 @@ void SetInspectorMode( int iType ){
 			iType = W_CONSOLE;
 		}
 		else if ( inspector_mode == W_CONSOLE ) {
-			iType = W_GROUP;
+			iType = W_CONTINENT;
 		}
-		else{
+		else if( inspector_mode == W_CONTINENT ) {
+			iType = W_ENTITY;
+		}
+		else {
 			iType = W_ENTITY;
 		}
 	}
@@ -708,6 +743,13 @@ void SetInspectorMode( int iType ){
 			gtk_notebook_set_current_page( GTK_NOTEBOOK( g_pGroupDlg->m_pNotebook ), 3 );
 		} else {
 			gtk_notebook_set_current_page( GTK_NOTEBOOK( g_pGroupDlg->m_pNotebook ), 1 );
+		}
+		break;
+		
+	case W_CONTINENT:
+		gtk_window_set_title( GTK_WINDOW( g_qeglobals_gui.d_entity ), _( "Continents" ) );
+		if( g_pParentWnd->FloatingGroupDialog() ) {
+			gtk_notebook_set_current_page( GTK_NOTEBOOK( g_pGroupDlg->m_pNotebook ), 3 );
 		}
 		break;
 
@@ -1151,6 +1193,7 @@ static void switch_page( GtkNotebook *notebook, GtkWidget *page, guint page_num,
 		case 0: inspector_mode = W_ENTITY; break;
 		case 1: inspector_mode = W_TEXTURE; break;
 		case 2: inspector_mode = W_CONSOLE; break;
+		case 3: inspector_mode = W_CONTINENT; break;
 		default: inspector_mode = W_GROUP; break;
 		}
 	}
@@ -1234,6 +1277,88 @@ GroupDlg::GroupDlg (){
 #ifdef _WIN32
 extern void PositionWindowOnPrimaryScreen( window_position_t& position );
 #endif
+
+static void entity_continent_selection_changed( GtkWidget *widget, gpointer data )
+{
+	if( edit_entity == nullptr )
+	{
+		return;
+	}
+
+	gchar *name;
+	name = gtk_combo_box_text_get_active_text( GTK_COMBO_BOX_TEXT( EntWidgets[EntContinent] ) );
+	if( !name )
+	{
+		return;
+	}
+
+	for( continent_t * continent : g_qeglobals.d_continents )
+	{
+		if( strcmp( continent->name.c_str(), name ) == 0 )
+		{
+			edit_entity->continent = continent;
+			break;
+		}
+	}
+
+	g_free( name );
+}
+
+static void continent_ui_callback_new( GtkWidget *widget, gpointer data )
+{
+	Continent_New( "new_continent", "New Continent" );
+}
+
+static void continent_ui_callback_update( GtkWidget *widget, gpointer data )
+{
+	if( edit_continent )
+	{
+		edit_continent->name = gtk_entry_get_text( GTK_ENTRY( ContinentWidgets[ContinentName] ) );
+
+		Continent_UpdateGuiList();
+	}
+}
+
+static void continent_ui_callback_update_selection( GtkTreeSelection* selection, gpointer data )
+{
+	GtkTreeModel* model;
+	GtkTreeIter iter;
+	GtkWidget *dialog;
+	gboolean selected;
+
+	dialog = GTK_WIDGET( data );
+	selected = gtk_tree_selection_get_selected( selection, &model, &iter );
+	if( selected == FALSE )
+	{
+		return;
+	}
+
+	char * continent_name;
+	continent_t * continent;
+	gtk_tree_model_get( model, &iter, 0, &continent_name, 1, &continent, 2 );
+
+	if( continent )
+	{
+		gtk_entry_set_text( GTK_ENTRY( ContinentWidgets[ContinentFilename] ), continent->filename.c_str() );
+		gtk_entry_set_text( GTK_ENTRY( ContinentWidgets[ContinentName] ), continent->name.c_str() );
+
+		edit_continent = continent;
+	}
+	g_free( continent_name );
+}
+static void continent_ui_callback_realize( GtkWidget *widget, gpointer data )
+{
+	continent_ui_callback_update_selection( gtk_tree_view_get_selection( GTK_TREE_VIEW( widget ) ), data );
+}
+
+static void continent_ui_callback_delete( GtkWidget *widget, gpointer data )
+{
+	if( edit_continent )
+	{
+		Continent_Delete( edit_continent );
+		edit_continent = nullptr;
+	}
+}
 
 void GroupDlg::Create(){
 	GtkWidget *dialog, *content_area;
@@ -1625,9 +1750,35 @@ void GroupDlg::Create(){
 					}
 				}
 			}
+
+			{
+				GtkWidget* table = gtk_table_new( 1, 2, FALSE );
+				gtk_box_pack_start( GTK_BOX( vbox ), table, FALSE, TRUE, 0 );
+				gtk_table_set_row_spacings( GTK_TABLE( table ), 3 );
+				gtk_table_set_col_spacings( GTK_TABLE( table ), 5 );
+				gtk_widget_show( table );
+
+				{
+					GtkWidget* entry = gtk_combo_box_text_new();
+					gtk_table_attach( GTK_TABLE( table ), entry, 1, 2, 0, 1, (GtkAttachOptions) ( GTK_EXPAND | GTK_FILL ), (GtkAttachOptions) ( 0 ), 0, 0 );
+					gtk_widget_show( entry );
+					gtk_widget_set_events( entry, GDK_KEY_PRESS_MASK );
+					g_signal_connect( G_OBJECT( GTK_COMBO_BOX( entry ) ), "changed", G_CALLBACK( entity_continent_selection_changed ), dialog );
+					EntWidgets[EntContinent] = entry;
+				}
+				{
+					GtkWidget* label = gtk_label_new( _( "Continent" ) );
+					gtk_table_attach( GTK_TABLE( table ), label, 0, 1, 0, 1, (GtkAttachOptions) ( GTK_FILL ), (GtkAttachOptions) ( 0 ), 0, 0 );
+					gtk_misc_set_alignment( GTK_MISC( label ), 0.0, 0.5 );
+					gtk_widget_show( label );
+				}
+			}
+
 		}
 
 		if ( g_pParentWnd->FloatingGroupDialog() ) {
+
+			// Console
 			{
 				GtkWidget* scr = gtk_scrolled_window_new( NULL, NULL );
 				gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scr ), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC );
@@ -1651,6 +1802,152 @@ void GroupDlg::Create(){
 					gtk_notebook_append_page( GTK_NOTEBOOK( notebook ), scr, label );
 				}
 			}
+			// ~Console
+
+			// Continents
+			{
+				GtkWidget* scr = gtk_scrolled_window_new( NULL, NULL );
+				gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scr ), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC );
+				gtk_scrolled_window_set_shadow_type( GTK_SCROLLED_WINDOW( scr ), GTK_SHADOW_IN );
+				gtk_container_set_border_width( GTK_CONTAINER( scr ), 3 );
+				gtk_widget_show( scr );
+
+				{
+					GtkWidget* hbox = gtk_hbox_new( FALSE, 2 );
+					gtk_container_set_border_width( GTK_CONTAINER( hbox ), 2 );
+					gtk_widget_show( hbox );
+
+					{
+						GtkWidget* label = gtk_label_new( _( "Continents" ) );
+						gtk_widget_show( label );
+						gtk_notebook_append_page( GTK_NOTEBOOK( notebook ), hbox, label );
+					}
+
+					{
+						GtkWidget* vbox = gtk_vbox_new( FALSE, 0 );
+						gtk_box_pack_start( GTK_BOX( hbox ), vbox, TRUE, TRUE, 0 );
+						gtk_widget_show( vbox );
+
+						GtkWidget* split1 = gtk_vpaned_new();
+						gtk_box_pack_start( GTK_BOX( vbox ), split1, TRUE, TRUE, 0 );
+						gtk_widget_show( split1 );
+
+						GtkWidget* split2 = gtk_vpaned_new();
+						gtk_paned_pack1( GTK_PANED( split1 ), split2, TRUE, FALSE );
+						gtk_widget_show( split2 );
+
+						g_object_set_data( G_OBJECT( dialog ), "split1", split1 );
+						g_object_set_data( G_OBJECT( dialog ), "split2", split2 );
+
+						{
+							GtkWidget* scr = gtk_scrolled_window_new( NULL, NULL );
+							gtk_paned_pack1( GTK_PANED( split2 ), scr, TRUE, FALSE );
+							gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scr ), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS );
+							gtk_scrolled_window_set_shadow_type( GTK_SCROLLED_WINDOW( scr ), GTK_SHADOW_IN );
+							gtk_widget_show( scr );
+
+							{
+								GtkListStore* store = gtk_list_store_new( 2, G_TYPE_STRING, G_TYPE_POINTER );
+								g_qeglobals_gui.d_continents = store;
+
+								GtkWidget* view = gtk_tree_view_new_with_model( GTK_TREE_MODEL( store ) );
+								ContinentWidgets[ContinentList] = view;
+
+								gtk_tree_view_set_headers_visible( GTK_TREE_VIEW( view ), FALSE );
+								{
+									GtkCellRenderer* renderer = gtk_cell_renderer_text_new();
+									GtkTreeViewColumn* column = gtk_tree_view_column_new_with_attributes( "Key", renderer, "text", 0, (char *) NULL );
+									gtk_tree_view_append_column( GTK_TREE_VIEW( view ), column );
+								}
+								{
+									GtkTreeSelection* selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( view ) );
+									g_signal_connect( G_OBJECT( selection ), "changed", G_CALLBACK( continent_ui_callback_update_selection ), dialog );
+									g_signal_connect( G_OBJECT( view ), "realize", G_CALLBACK( continent_ui_callback_realize ), dialog );
+								}
+								gtk_container_add( GTK_CONTAINER( scr ), view );
+								gtk_widget_show( view );
+								g_object_unref( G_OBJECT( store ) );
+							}
+						}
+
+						{
+							GtkWidget * divider = gtk_hseparator_new();
+							gtk_box_pack_start( GTK_BOX( vbox ), divider, FALSE, FALSE, 8 );
+							gtk_widget_show( divider );
+
+							GtkWidget* new_button = gtk_button_new_with_label( _( "New Continent" ) );
+							gtk_box_pack_start( GTK_BOX( vbox ), new_button, FALSE, FALSE, 0 );
+							gtk_widget_show( new_button );
+							g_signal_connect( G_OBJECT( new_button ), "clicked", G_CALLBACK( continent_ui_callback_new ), dialog );
+						}
+
+						{
+							GtkWidget* scr = gtk_scrolled_window_new( NULL, NULL );
+							gtk_paned_pack1( GTK_PANED( split1 ), scr, TRUE, FALSE );
+							gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scr ), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS );
+							gtk_scrolled_window_set_shadow_type( GTK_SCROLLED_WINDOW( scr ), GTK_SHADOW_IN );
+							gtk_widget_show( scr );
+
+							GtkWidget* vbox = gtk_vbox_new( FALSE, 0 );
+							gtk_box_pack_start( GTK_BOX( hbox ), vbox, TRUE, TRUE, 0 );
+							gtk_widget_show( vbox );
+
+							{
+								GtkWidget* table = gtk_table_new( 2, 2, FALSE );
+								gtk_box_pack_start( GTK_BOX( vbox ), table, FALSE, TRUE, 0 );
+								gtk_table_set_row_spacings( GTK_TABLE( table ), 3 );
+								gtk_table_set_col_spacings( GTK_TABLE( table ), 5 );
+								gtk_widget_show( table );
+
+								{
+									GtkWidget* label = gtk_label_new( _( "File" ) );
+									gtk_table_attach( GTK_TABLE( table ), label, 0, 1, 0, 1, (GtkAttachOptions) ( GTK_FILL ), (GtkAttachOptions) ( 0 ), 0, 0 );
+									gtk_misc_set_alignment( GTK_MISC( label ), 0.0, 0.5 );
+									gtk_widget_show( label );
+
+									GtkWidget* entry = gtk_entry_new();
+									gtk_table_attach( GTK_TABLE( table ), entry, 1, 2, 0, 1, (GtkAttachOptions) ( GTK_EXPAND | GTK_FILL ), (GtkAttachOptions) ( 0 ), 0, 0 );
+									gtk_widget_show( entry );
+									gtk_entry_set_editable( GTK_ENTRY( entry ), false );
+									ContinentWidgets[ContinentFilename] = entry;
+								}
+
+								{
+									GtkWidget* label = gtk_label_new( _( "Name" ) );
+									gtk_table_attach( GTK_TABLE( table ), label, 0, 1, 1, 2, (GtkAttachOptions) ( GTK_FILL ), (GtkAttachOptions) ( 0 ), 0, 0 );
+									gtk_misc_set_alignment( GTK_MISC( label ), 0.0, 0.5 );
+									gtk_widget_show( label );
+
+									GtkWidget* entry = gtk_entry_new();
+									gtk_table_attach( GTK_TABLE( table ), entry, 1, 2, 1, 2, (GtkAttachOptions) ( GTK_EXPAND | GTK_FILL ), (GtkAttachOptions) ( 0 ), 0, 0 );
+									gtk_widget_show( entry );
+									ContinentWidgets[ContinentName] = entry;
+								}
+							}
+
+							{
+								GtkWidget* update_button = gtk_button_new_with_label( _( "Update Continent" ) );
+								gtk_box_pack_start( GTK_BOX( vbox ), update_button, FALSE, FALSE, 0 );
+								gtk_widget_show( update_button );
+								g_signal_connect( G_OBJECT( update_button ), "clicked", G_CALLBACK( continent_ui_callback_update ), dialog );
+
+								GtkWidget * divider = gtk_hseparator_new();
+								gtk_box_pack_start( GTK_BOX( vbox ), divider, FALSE, FALSE, 8 );
+								gtk_widget_show( divider );
+
+								GtkWidget* del_button = gtk_button_new_with_label( _( "Delete Continent" ) );
+								gtk_box_pack_start( GTK_BOX( vbox ), del_button, FALSE, FALSE, 0 );
+								gtk_widget_show( del_button );
+								g_signal_connect( G_OBJECT( del_button ), "clicked", G_CALLBACK( continent_ui_callback_delete ), dialog );
+							}
+						}
+
+					}
+				}
+
+			}
+			// ~Continents
+
 		}
 
 		inspector_mode = W_ENTITY;
@@ -1658,3 +1955,4 @@ void GroupDlg::Create(){
 		g_signal_connect( G_OBJECT( notebook ), "switch-page", G_CALLBACK( switch_page ), dialog );
 	}
 }
+
