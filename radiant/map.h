@@ -75,3 +75,4 @@ void Continent_SetActive( continent_t * continent );
 void Continent_Delete( continent_t * continent );
 void Continent_DeleteAll();
 void Continent_UpdateGuiList();
+std::shared_ptr<continent_t> Continent_GetPtr( continent_t * continent );

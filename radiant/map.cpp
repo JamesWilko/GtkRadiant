@@ -500,9 +500,9 @@ void Map_ImportEntities( CPtrArray *ents, bool bAddSelected = false ){
 			}
 
 			// set the continent when loading an entity
-			if( g_qeglobals.active_continent )
+			if( auto active = g_qeglobals.active_continent.lock() )
 			{
-				e->continent = g_qeglobals.active_continent;
+				e->continent = active;
 			}
 
 			// add the entity to the end of the entity list
@@ -1325,7 +1325,7 @@ void Region_SpawnPoint( FILE *f ){
 void Continent_New( const char *filename, const char *name, bool bSetActive )
 {
 	// Create a new continent
-	continent_t * newContinent = new continent_t();
+	auto newContinent = std::make_shared<continent_t>();
 	newContinent->filename = filename;
 	if( name == nullptr )
 	{
@@ -1342,7 +1342,7 @@ void Continent_New( const char *filename, const char *name, bool bSetActive )
 	// Set it active and update the gui
 	if( bSetActive )
 	{
-		Continent_SetActive( newContinent );
+		Continent_SetActive( newContinent.get() );
 	}
 	else
 	{
@@ -1352,7 +1352,7 @@ void Continent_New( const char *filename, const char *name, bool bSetActive )
 
 void Continent_SetActive( continent_t * continent )
 {
-	g_qeglobals.active_continent = continent;
+	g_qeglobals.active_continent = Continent_GetPtr( continent );
 	Continent_UpdateGuiList();
 }
 
@@ -1360,33 +1360,36 @@ void Continent_Delete( continent_t * continent )
 {
 	if( g_qeglobals.d_continents.size() <= 1 )
 	{
+		gtk_MessageBox( g_pParentWnd->m_pWidget, _( "Can't delete the last continent." ), NULL, MB_OK | MB_ICONWARNING );
 		return;
 	}
 
 	for(int i = g_qeglobals.d_continents.size() - 1; i >= 0; --i )
 	{
-		if( continent == g_qeglobals.d_continents[i] )
+		if( continent == g_qeglobals.d_continents[i].get() )
 		{
+			g_qeglobals.d_continents[i].reset();
 			g_qeglobals.d_continents.erase( g_qeglobals.d_continents.begin() + i );
 		}
 	}
-	if( g_qeglobals.active_continent == continent )
+
+	// Must always have an active continent, so set to the first in the list
+	if( g_qeglobals.active_continent.expired() )
 	{
-		g_qeglobals.active_continent = nullptr;
+		g_qeglobals.active_continent = g_qeglobals.d_continents[0];
 	}
-	delete continent;
 
 	Continent_UpdateGuiList();
 }
 
 void Continent_DeleteAll()
 {
-	for( continent_t * continent : g_qeglobals.d_continents )
+	for( auto continent : g_qeglobals.d_continents )
 	{
-		delete continent;
+		continent.reset();
 	}
 	g_qeglobals.d_continents.clear();
-	g_qeglobals.active_continent = nullptr;
+	g_qeglobals.active_continent.reset();
 
 	Continent_UpdateGuiList();
 }
@@ -1395,16 +1398,29 @@ void Continent_UpdateGuiList()
 {
 	gtk_list_store_clear( g_qeglobals_gui.d_continents );
 
-	for( continent_t * continent : g_qeglobals.d_continents )
+	for( auto continent : g_qeglobals.d_continents )
 	{
 		std::string continentName = continent->name;
-		if( g_qeglobals.active_continent == continent )
+		if( auto active = g_qeglobals.active_continent.lock() )
 		{
-			continentName += " [Active]";
+			if( active == continent )
+			{
+				continentName += " [Active]";
+			}
 		}
 
 		GtkTreeIter iter;
 		gtk_list_store_append( g_qeglobals_gui.d_continents, &iter );
 		gtk_list_store_set( g_qeglobals_gui.d_continents, &iter, 0, (gchar*) continentName.c_str(), 1, continent, -1 );
 	}
+}
+
+std::shared_ptr<continent_t> Continent_GetPtr( continent_t * continent )
+{
+	for( auto c : g_qeglobals.d_continents )
+	{
+		if( continent == c.get() )
+			return c;
+	}
+	return nullptr;
 }
