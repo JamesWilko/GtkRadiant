@@ -686,7 +686,7 @@ typedef struct entity_s
 
 	int undoId, redoId, entityId;           // used for undo/redo
 	vec3_t origin;
-	std::weak_ptr<continent_t> continent;
+	continent_t *continent;
 	eclass_t  *eclass;
 	epair_t       *epairs;
 	entity_interfaces_t model;
@@ -791,8 +791,8 @@ typedef struct
 
 	entity_t *d_project_entity;
 
-	std::vector<std::shared_ptr<continent_t>> d_continents;
-	std::weak_ptr<continent_t> active_continent;
+	std::vector<continent_t *> d_continents;
+	continent_t * active_continent;
 
 	// defines the boundaries of the current work area
 	// is used to guess brushes and drop points third coordinate when creating from 2D view

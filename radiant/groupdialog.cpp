@@ -41,7 +41,7 @@ int inspector_mode;                     // W_TEXTURE, W_ENTITY, or W_CONSOLE
 qboolean multiple_entities;
 qboolean disable_spawn_get = false;
 entity_t        *edit_entity;
-std::weak_ptr<continent_t> edit_continent;
+continent_t *edit_continent;
 /*
    static GdkPixmap *tree_pixmaps[7];
    static GdkBitmap *tree_masks[7];
@@ -149,17 +149,17 @@ void SetKeyValuePairs( bool bClearMD3 ){
 	{
 		gtk_combo_box_text_remove( GTK_COMBO_BOX_TEXT( EntWidgets[EntContinent] ), i );
 	}
-	for( auto continent : g_qeglobals.d_continents )
+	for( continent_t * continent : g_qeglobals.d_continents )
 	{
 		gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT( EntWidgets[EntContinent] ), continent->name.c_str() );
 	}
 
 	// Set the continent
-	if( auto continent = edit_entity->continent.lock() )
+	if( edit_entity->continent != nullptr )
 	{
 		for( int i = 0; i < g_qeglobals.d_continents.size(); ++i )
 		{
-			if( continent == g_qeglobals.d_continents[i] )
+			if( edit_entity->continent == g_qeglobals.d_continents[i] )
 			{
 				gtk_combo_box_set_active( GTK_COMBO_BOX( EntWidgets[EntContinent] ), i );
 				break;
@@ -1292,7 +1292,7 @@ static void entity_continent_selection_changed( GtkWidget *widget, gpointer data
 		return;
 	}
 
-	for( auto continent : g_qeglobals.d_continents )
+	for( continent_t * continent : g_qeglobals.d_continents )
 	{
 		if( strcmp( continent->name.c_str(), name ) == 0 )
 		{
@@ -1311,9 +1311,9 @@ static void continent_ui_callback_new( GtkWidget *widget, gpointer data )
 
 static void continent_ui_callback_update( GtkWidget *widget, gpointer data )
 {
-	if( auto continent = edit_continent.lock() )
+	if( edit_continent )
 	{
-		continent->name = gtk_entry_get_text( GTK_ENTRY( ContinentWidgets[ContinentName] ) );
+		edit_continent->name = gtk_entry_get_text( GTK_ENTRY( ContinentWidgets[ContinentName] ) );
 
 		Continent_UpdateGuiList();
 	}
@@ -1339,13 +1339,10 @@ static void continent_ui_callback_update_selection( GtkTreeSelection* selection,
 
 	if( continent )
 	{
-		if( auto c = Continent_GetPtr( continent ) )
-		{
-			gtk_entry_set_text( GTK_ENTRY( ContinentWidgets[ContinentFilename] ), c->filename.c_str() );
-			gtk_entry_set_text( GTK_ENTRY( ContinentWidgets[ContinentName] ), c->name.c_str() );
+		gtk_entry_set_text( GTK_ENTRY( ContinentWidgets[ContinentFilename] ), continent->filename.c_str() );
+		gtk_entry_set_text( GTK_ENTRY( ContinentWidgets[ContinentName] ), continent->name.c_str() );
 
-			edit_continent = c;
-		}
+		edit_continent = continent;
 	}
 	g_free( continent_name );
 }
@@ -1358,9 +1355,11 @@ static gint continent_ui_callback_button_press( GtkWidget *widget, GdkEventButto
 {
 	if( event->type == GDK_2BUTTON_PRESS )
 	{
-		if( auto continent = edit_continent.lock() )
+		if( edit_continent )
 		{
-			Continent_SetActive( continent.get() );
+			g_qeglobals.active_continent = edit_continent;
+
+			Continent_UpdateGuiList();
 		}
 		return TRUE;
 	}
@@ -1369,15 +1368,10 @@ static gint continent_ui_callback_button_press( GtkWidget *widget, GdkEventButto
 
 static void continent_ui_callback_delete( GtkWidget *widget, gpointer data )
 {
-	// this is awful, but whatever
-	continent_t * ptr = nullptr;
-	if( auto continent = edit_continent.lock() )
+	if( edit_continent )
 	{
-		ptr = continent.get();
-	}
-	if( ptr )
-	{
-		Continent_Delete( ptr );
+		Continent_Delete( edit_continent );
+		edit_continent = nullptr;
 	}
 }
 
