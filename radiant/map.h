@@ -67,6 +67,9 @@ void Map_SaveSelected( const char* filename );
 void  Map_StartPosition( void );
 void Region_SpawnPoint( FILE *f );
 
+bool Map_HasRelatedContinents( const char *filename );
+void Map_ImportRelatedContinents( const char *filename );
+
 void Map_Import( IDataStream *in, const char* type, bool bAddSelected = false );
 void Map_Export( IDataStream *out, const char* type, bool bRegionOnly = false, bool bSelectedOnly = false );
 

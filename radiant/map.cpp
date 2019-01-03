@@ -37,6 +37,14 @@ int modified;   // for quit confirmation (0 = clean, 1 = unsaved,
 
 char currentmap[1024];
 
+const char *ttf2_ent_maps[] = {
+	"_env.ent",
+	"_fx.ent",
+	"_spawn.ent",
+	"_script.ent",
+	"_snd.ent",
+};
+
 brush_t active_brushes;     // brushes currently being displayed
 brush_t selected_brushes;   // highlighted
 
@@ -533,6 +541,7 @@ void Map_Import( IDataStream *in, const char *type, bool bAddSelected ){
    ================
  */
 void Map_LoadFile( const char *filename ){
+
 	clock_t start, finish;
 	double elapsed_time;
 	start = clock();
@@ -572,7 +581,7 @@ void Map_LoadFile( const char *filename ){
 	// but opening as text confuses the scriptlib parser
 	// this may be a problem if we "rb" and use the XML parser, might have an incompatibility
 	if ( file.Open( filename, "rb" ) ) {
-		Continent_New( filename, filename, true );
+		Continent_New( filename, nullptr, true );
 		Map_Import( &file, type );
 	}
 	else{
@@ -628,6 +637,14 @@ void Map_LoadFile( const char *filename ){
 	Map_StartPosition();
 
 	Map_RegionOff();
+
+	if( Map_HasRelatedContinents( filename ) )
+	{
+		if( gtk_MessageBox( g_pParentWnd->m_pWidget, _( "This map potentially has related continents, attempt to load them?" ), " ", MB_YESNO ) == IDYES )
+		{
+			Map_ImportRelatedContinents( filename );
+		}
+	}
 
 	modified = false;
 	Sys_SetTitle( filename );
@@ -1223,7 +1240,7 @@ void Map_ImportFile( const char *filename ){
 	}
 	/*!\todo Resolve "r" problem in scriptlib" */
 	if ( file.Open( filename, "rb" ) ) {
-		Continent_New( filename, filename, true );
+		Continent_New( filename, nullptr, true );
 		Map_Import( &file, type, true );
 	}
 	else{
@@ -1320,6 +1337,48 @@ void Region_SpawnPoint( FILE *f ){
 			 (int)g_pParentWnd->GetCamWnd()->Camera()->origin[2] );
 	fprintf( f, "\"angle\" \"%i\"\n", (int)g_pParentWnd->GetCamWnd()->Camera()->angles[YAW] );
 	fprintf( f, "}\n" );
+}
+
+static bool string_ends_with( std::string const & value, std::string const & ending )
+{
+	if( ending.size() > value.size() ) return false;
+	return std::equal( ending.rbegin(), ending.rend(), value.rbegin() );
+}
+
+bool Map_HasRelatedContinents( const char *filename )
+{
+	for( auto * end : ttf2_ent_maps )
+	{
+		if( string_ends_with( filename, end ) )
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void Map_ImportRelatedContinents( const char *filename )
+{
+	std::string continents_filename = filename;
+
+	// Find which continent the map is and remove that from the filename
+	for( auto * end : ttf2_ent_maps )
+	{
+		if( string_ends_with( continents_filename, end ) )
+		{
+			continents_filename = continents_filename.substr( 0, continents_filename.length() - strlen( end ) );
+			break;
+		}
+	}
+
+	// Import all the other continents except the one we already loaded
+	for( auto * end : ttf2_ent_maps )
+	{
+		std::string import_filename = continents_filename + end;
+		if( strcmp( filename, import_filename.c_str() ) == 0 ) continue;
+
+		Map_ImportFile( import_filename.c_str() );
+	}
 }
 
 void Continent_New( const char *filename, const char *name, bool bSetActive )
