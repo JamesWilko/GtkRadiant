@@ -522,6 +522,19 @@ typedef struct entitymodel_t
 #define     ECLASS_PLUGINENTITY 0x00000010
 #endif // USEPLUGINENTITIES
 
+typedef struct eclass_option_choice_s {
+	int value;
+	char *name;
+} eclass_option_choice_t;
+
+typedef struct eclass_option_s {
+	int optiontype;
+	char *optioninfo;
+	char *epairname;
+	char *optiondefault;
+	GSList *choices; // list of choices_t
+} eclass_option_t;
+
 typedef struct eclass_s
 {
 	struct eclass_s *next;
@@ -533,6 +546,8 @@ typedef struct eclass_s
 	texdef_t texdef;
 	char    *comments;
 	char flagnames[MAX_FLAGS][32];
+
+	std::vector<eclass_option_t *> options;
 
 	entitymodel *model;
 	char  *modelpath;

@@ -59,6 +59,14 @@ continent_t *edit_continent;
 #define GROUP_DELIMETER '@'
 #define GROUPNAME "QER_Group_%i"
 
+// from eclassfgd plugin.cpp
+#define OPTION_NOOPTION   0
+#define OPTION_STRING     1
+#define OPTION_CHOICES    2
+#define OPTION_INTEGER    3
+#define OPTION_FLAGS      4
+#define OPTION_BOOLEAN    5
+
 GroupDlg g_wndGroup;
 GroupDlg *g_pGroupDlg = &g_wndGroup;
 
@@ -77,7 +85,10 @@ static GtkWidget *LayoutTable;
 // 1: only the text, 2: text and four checks, 3: text and 8 checks
 static int widget_state = 0;
 
+static std::vector<GtkWidget *> ent_boolean_widgets;
+
 static void entity_check( GtkWidget *widget, gpointer data );
+static void entity_boolean_check( GtkWidget *widget, gpointer data );
 
 // =============================================================================
 // Global functions
@@ -142,7 +153,55 @@ void SetKeyValuePairs( bool bClearMD3 ){
 
 	gtk_entry_set_text( GTK_ENTRY( EntWidgets[EntKeyField] ), strKey.GetBuffer() );
 	gtk_entry_set_text( GTK_ENTRY( EntWidgets[EntValueField] ), strVal.GetBuffer() );
-	
+
+	Sys_UpdateWindows( W_CAMERA | W_XY );
+}
+
+void SetEntBooleans()
+{
+	// Remove old booleans list
+	for( int i = ent_boolean_widgets.size() - 1; i >= 0; --i )
+	{
+		GtkWidget * widget = ent_boolean_widgets[i];
+		gtk_widget_hide( widget );
+		gtk_container_remove( GTK_CONTAINER( EntWidgets[EntCheckboxesTable] ), widget );
+	}
+	ent_boolean_widgets.clear();
+
+	// If there's no entity, then display no booleans
+	if( edit_entity == NULL )
+	{
+		return;
+	}
+
+	// Populate booleans list
+	for( auto * option : edit_entity->eclass->options )
+	{
+		if( option->optiontype == OPTION_BOOLEAN )
+		{
+			int index = ent_boolean_widgets.size();
+			GtkWidget* check = gtk_check_button_new_with_label( option->optioninfo );
+			gtk_table_attach_defaults( GTK_TABLE( EntWidgets[EntCheckboxesTable] ), check, 0, 1, index, index + 1 );
+			gtk_widget_show( check );
+			g_signal_connect( G_OBJECT( check ), "toggled", G_CALLBACK( entity_boolean_check ), option );
+
+			for( epair_t* epair = edit_entity->epairs; epair; epair = epair->next )
+			{
+				if( strcmp( epair->key, option->epairname ) == 0 )
+				{
+					bool active = strcmp( epair->value, "1" ) == 0;
+					gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( check ), active );
+					break;
+				}
+			}
+
+			ent_boolean_widgets.push_back( check );
+		}
+	}
+}
+
+void SetContinents()
+{
 	// Repopulate the continents list
 	GList * children = gtk_container_get_children( GTK_CONTAINER( EntWidgets[EntContinent] ) );
 	for( int i = g_list_length( children ); i >= 0; --i )
@@ -155,7 +214,7 @@ void SetKeyValuePairs( bool bClearMD3 ){
 	}
 
 	// Set the continent
-	if( edit_entity->continent != nullptr )
+	if( edit_entity && edit_entity->continent )
 	{
 		for( int i = 0; i < g_qeglobals.d_continents.size(); ++i )
 		{
@@ -170,8 +229,6 @@ void SetKeyValuePairs( bool bClearMD3 ){
 	{
 		gtk_combo_box_set_active( GTK_COMBO_BOX( EntWidgets[EntContinent] ), -1 );
 	}
-
-	Sys_UpdateWindows( W_CAMERA | W_XY );
 }
 
 // SetSpawnFlags
@@ -360,7 +417,6 @@ bool UpdateSel( int iIndex, eclass_t *pec ){
 
 		Str str;
 		str = pec->flagnames[spawn_table[i]];
-		str.MakeLower();
 
 //    gtk_table_attach (GTK_TABLE (LayoutTable), widget, i%4, i%4+1, i/4, i/4+1,
 		gtk_table_attach( GTK_TABLE( LayoutTable ), widget, i % 4, i % 4 + 1, i / 4, i / 4 + 1,
@@ -374,6 +430,8 @@ bool UpdateSel( int iIndex, eclass_t *pec ){
 	SetSpawnFlags();
 
 	SetKeyValuePairs();
+	SetEntBooleans();
+	SetContinents();
 
 	return TRUE;
 }
@@ -437,6 +495,9 @@ void CreateEntity( void ){
 	}
 
 	SetKeyValuePairs();
+	SetEntBooleans();
+	SetContinents();
+
 	Select_Deselect();
 	Select_Brush( edit_entity->brushes.onext );
 	Sys_UpdateWindows( W_ALL );
@@ -578,6 +639,9 @@ void ResetEntity(){
 
 	// refresh the dialog
 	SetKeyValuePairs();
+	SetEntBooleans();
+	SetContinents();
+
 	for ( i = EntCheck1; i <= EntCheck16; i++ )
 		g_signal_handlers_block_by_func( G_OBJECT( EntWidgets[i] ), (gpointer)G_CALLBACK( entity_check ), NULL );
 	SetSpawnFlags();
@@ -1215,68 +1279,14 @@ static void switch_page( GtkNotebook *notebook, GtkWidget *page, guint page_num,
 	}
 }
 
-// =============================================================================
-// GroupDlg class
+static void entity_boolean_check( GtkWidget *widget, gpointer data )
+{
+	eclass_option_t * option = (eclass_option_t*) data;
+	bool active = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( widget ) );
+	SetKeyValue( edit_entity, option->epairname, active ? "1" : "0" );
 
-static gint OnDeleteHide( GtkWidget *widget ) {
-  gtk_widget_hide( widget );
-  // see OnDialogKey
-  gtk_notebook_set_current_page( GTK_NOTEBOOK( g_pGroupDlg->m_pNotebook ), 0 );
-  return TRUE;
+	SetKeyValuePairs();
 }
-
-// NOTE: when a key is hit with group window focused, we catch in this handler but it gets propagated to mainframe too
-//   therefore the message will be intercepted and used as a ID_SELECTION_DESELECT
-static gint OnDialogKey( GtkWidget* widget, GdkEventKey* event, gpointer data ) {
-  // make the "ViewTextures" and "ViewEntityInfo" keys that normally bring this dialog up hide it as well - copypasta from mainframe_keypress
-  // NOTE: maybe we could also check the state of the notebook, see if those are actually displayed .. if they are not, then switch the notebook pages rather than hiding?
-  bool hide = false;
-  // Disable this, it makes the dialog hide whenever you type 'T' when editing entities etc. - Esc key is enough
-#if 0
-  unsigned int code = gdk_keyval_to_upper( event->keyval );
-  for ( int i = 0; i < g_nCommandCount; i++ ) {
-    if ( g_Commands[i].m_nKey == code ) { // find a match?
-      // check modifiers
-      unsigned int nState = 0;
-      if ( Sys_AltDown() ) {
-        nState |= RAD_ALT;
-      }
-      if ( ( event->state & GDK_CONTROL_MASK ) != 0 ) {
-        nState |= RAD_CONTROL;
-      }
-      if ( ( event->state & GDK_SHIFT_MASK ) != 0 ) {
-        nState |= RAD_SHIFT;
-      }
-      if ( ( g_Commands[i].m_nModifiers & 0x7 ) == nState ) {
-        Sys_Printf( "Floating group dialog: %s\n", g_Commands[i].m_strCommand );
-        if ( g_Commands[i].m_nCommand == ID_VIEW_TEXTURE || g_Commands[i].m_nCommand == ID_VIEW_ENTITY ) {
-          hide = true;
-        }
-        break;
-      }
-    }
-  }
-#endif
-  if ( g_pParentWnd->CurrentStyle() != MainFrame::eFloating && ( hide || event->keyval == GDK_KEY_Escape ) ) {
-    // toggle off the group view (whatever part of it is currently displayed)
-    // this used to be done with a g_pParentWnd->OnViewEntity(); but it had bad consequences
-    gtk_widget_hide( widget );
-    // set the group notebook page back to 0, so that when we recall the texture view there is an expose event coming up
-    gtk_notebook_set_current_page( GTK_NOTEBOOK( g_pGroupDlg->m_pNotebook ), 0 );
-    // FIXME: https://github.com/TTimo/GtkRadiant/issues/192
-//    Sys_Printf( "hide widget and set page to 0\n" );
-    return TRUE;
-  }
-  return FALSE;
-}
-
-GroupDlg::GroupDlg (){
-	m_pWidget = NULL;
-}
-
-#ifdef _WIN32
-extern void PositionWindowOnPrimaryScreen( window_position_t& position );
-#endif
 
 static void entity_continent_selection_changed( GtkWidget *widget, gpointer data )
 {
@@ -1374,6 +1384,69 @@ static void continent_ui_callback_delete( GtkWidget *widget, gpointer data )
 		edit_continent = nullptr;
 	}
 }
+
+// =============================================================================
+// GroupDlg class
+
+static gint OnDeleteHide( GtkWidget *widget ) {
+  gtk_widget_hide( widget );
+  // see OnDialogKey
+  gtk_notebook_set_current_page( GTK_NOTEBOOK( g_pGroupDlg->m_pNotebook ), 0 );
+  return TRUE;
+}
+
+// NOTE: when a key is hit with group window focused, we catch in this handler but it gets propagated to mainframe too
+//   therefore the message will be intercepted and used as a ID_SELECTION_DESELECT
+static gint OnDialogKey( GtkWidget* widget, GdkEventKey* event, gpointer data ) {
+  // make the "ViewTextures" and "ViewEntityInfo" keys that normally bring this dialog up hide it as well - copypasta from mainframe_keypress
+  // NOTE: maybe we could also check the state of the notebook, see if those are actually displayed .. if they are not, then switch the notebook pages rather than hiding?
+  bool hide = false;
+  // Disable this, it makes the dialog hide whenever you type 'T' when editing entities etc. - Esc key is enough
+#if 0
+  unsigned int code = gdk_keyval_to_upper( event->keyval );
+  for ( int i = 0; i < g_nCommandCount; i++ ) {
+    if ( g_Commands[i].m_nKey == code ) { // find a match?
+      // check modifiers
+      unsigned int nState = 0;
+      if ( Sys_AltDown() ) {
+        nState |= RAD_ALT;
+      }
+      if ( ( event->state & GDK_CONTROL_MASK ) != 0 ) {
+        nState |= RAD_CONTROL;
+      }
+      if ( ( event->state & GDK_SHIFT_MASK ) != 0 ) {
+        nState |= RAD_SHIFT;
+      }
+      if ( ( g_Commands[i].m_nModifiers & 0x7 ) == nState ) {
+        Sys_Printf( "Floating group dialog: %s\n", g_Commands[i].m_strCommand );
+        if ( g_Commands[i].m_nCommand == ID_VIEW_TEXTURE || g_Commands[i].m_nCommand == ID_VIEW_ENTITY ) {
+          hide = true;
+        }
+        break;
+      }
+    }
+  }
+#endif
+  if ( g_pParentWnd->CurrentStyle() != MainFrame::eFloating && ( hide || event->keyval == GDK_KEY_Escape ) ) {
+    // toggle off the group view (whatever part of it is currently displayed)
+    // this used to be done with a g_pParentWnd->OnViewEntity(); but it had bad consequences
+    gtk_widget_hide( widget );
+    // set the group notebook page back to 0, so that when we recall the texture view there is an expose event coming up
+    gtk_notebook_set_current_page( GTK_NOTEBOOK( g_pGroupDlg->m_pNotebook ), 0 );
+    // FIXME: https://github.com/TTimo/GtkRadiant/issues/192
+//    Sys_Printf( "hide widget and set page to 0\n" );
+    return TRUE;
+  }
+  return FALSE;
+}
+
+GroupDlg::GroupDlg (){
+	m_pWidget = NULL;
+}
+
+#ifdef _WIN32
+extern void PositionWindowOnPrimaryScreen( window_position_t& position );
+#endif
 
 void GroupDlg::Create(){
 	GtkWidget *dialog, *content_area;
@@ -1507,42 +1580,64 @@ void GroupDlg::Create(){
 						}
 
 						{
-							GtkWidget* scr = gtk_scrolled_window_new( NULL, NULL );
-							gtk_box_pack_start( GTK_BOX( vbox2 ), scr, TRUE, TRUE, 0 );
-							gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scr ), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC );
-							gtk_scrolled_window_set_shadow_type( GTK_SCROLLED_WINDOW( scr ), GTK_SHADOW_IN );
-							gtk_widget_show( scr );
+							GtkWidget* hbox = gtk_hbox_new( FALSE, 5 );
+							gtk_box_pack_start( GTK_BOX( vbox ), hbox, TRUE, TRUE, 0 );
+							gtk_widget_show( hbox );
+
+							// Boolean Options
+							{
+								GtkWidget* scr = gtk_scrolled_window_new( NULL, NULL );
+								gtk_box_pack_start( GTK_BOX( hbox ), scr, TRUE, TRUE, 0 );
+								gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scr ), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC );
+								gtk_scrolled_window_set_shadow_type( GTK_SCROLLED_WINDOW( scr ), GTK_SHADOW_NONE );
+								gtk_container_set_border_width( GTK_CONTAINER( scr ), 0 );
+								gtk_widget_show( scr );
+
+								GtkWidget* table = gtk_table_new( 20, 1, TRUE );
+								gtk_scrolled_window_add_with_viewport( GTK_SCROLLED_WINDOW( scr ), table );
+								gtk_widget_show( table );
+								EntWidgets[EntCheckboxesTable] = table;
+							}
+							// ~Boolean Options
 
 							{
-								GtkListStore* store = gtk_list_store_new( 2, G_TYPE_STRING, G_TYPE_STRING );
-
-								GtkWidget* view = gtk_tree_view_new_with_model( GTK_TREE_MODEL( store ) );
-								gtk_tree_view_set_headers_visible( GTK_TREE_VIEW( view ), FALSE );
-
-								{
-									GtkCellRenderer* renderer = gtk_cell_renderer_text_new();
-									GtkTreeViewColumn* column = gtk_tree_view_column_new_with_attributes( "", renderer, "text", 0, (char *) NULL );
-									gtk_tree_view_append_column( GTK_TREE_VIEW( view ), column );
-								}
+								GtkWidget* scr = gtk_scrolled_window_new( NULL, NULL );
+								gtk_box_pack_start( GTK_BOX( hbox ), scr, TRUE, TRUE, 0 );
+								gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scr ), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC );
+								gtk_scrolled_window_set_shadow_type( GTK_SCROLLED_WINDOW( scr ), GTK_SHADOW_IN );
+								gtk_widget_show( scr );
 
 								{
-									GtkCellRenderer* renderer = gtk_cell_renderer_text_new();
-									GtkTreeViewColumn* column = gtk_tree_view_column_new_with_attributes( "", renderer, "text", 1, (char *) NULL );
-									gtk_tree_view_append_column( GTK_TREE_VIEW( view ), column );
+									GtkListStore* store = gtk_list_store_new( 2, G_TYPE_STRING, G_TYPE_STRING );
+
+									GtkWidget* view = gtk_tree_view_new_with_model( GTK_TREE_MODEL( store ) );
+									gtk_tree_view_set_headers_visible( GTK_TREE_VIEW( view ), FALSE );
+
+									{
+										GtkCellRenderer* renderer = gtk_cell_renderer_text_new();
+										GtkTreeViewColumn* column = gtk_tree_view_column_new_with_attributes( "", renderer, "text", 0, (char *) NULL );
+										gtk_tree_view_append_column( GTK_TREE_VIEW( view ), column );
+									}
+
+									{
+										GtkCellRenderer* renderer = gtk_cell_renderer_text_new();
+										GtkTreeViewColumn* column = gtk_tree_view_column_new_with_attributes( "", renderer, "text", 1, (char *) NULL );
+										gtk_tree_view_append_column( GTK_TREE_VIEW( view ), column );
+									}
+
+									{
+										GtkTreeSelection* selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( view ) );
+										g_signal_connect( G_OBJECT( selection ), "changed", G_CALLBACK( proplist_selection_changed ), dialog );
+										g_signal_connect( G_OBJECT( view ), "realize", G_CALLBACK( proplist_view_realize ), dialog );
+									}
+
+									gtk_container_add( GTK_CONTAINER( scr ), view );
+
+									gtk_widget_show( view );
+									g_object_unref( G_OBJECT( store ) );
+
+									EntWidgets[EntProps] = view;
 								}
-
-								{
-									GtkTreeSelection* selection = gtk_tree_view_get_selection( GTK_TREE_VIEW( view ) );
-									g_signal_connect( G_OBJECT( selection ), "changed", G_CALLBACK( proplist_selection_changed ), dialog );
-									g_signal_connect( G_OBJECT( view ), "realize", G_CALLBACK( proplist_view_realize ), dialog );
-								}
-
-								gtk_container_add( GTK_CONTAINER( scr ), view );
-
-								gtk_widget_show( view );
-								g_object_unref( G_OBJECT( store ) );
-
-								EntWidgets[EntProps] = view;
 							}
 						}
 					}

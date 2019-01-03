@@ -194,8 +194,9 @@ const char *classnames[] = {"NOT DEFINED","BaseClass","PointClass","SolidClass"}
 #define OPTION_CHOICES    2
 #define OPTION_INTEGER    3
 #define OPTION_FLAGS      4
+#define OPTION_BOOLEAN    5
 
-const char *optionnames[] = {"NOT DEFINED","String","Choices","Integer","Flags"};
+const char *optionnames[] = { "NOT DEFINED", "String", "Choices", "Integer", "Flags", "Bool" };
 
 typedef struct choice_s {
 	int value;
@@ -459,6 +460,10 @@ void EClass_ImportFromClass( eclass_t *e, GSList *l_classes, class_t *bc ){
 		for ( GSList *optlst = bc->l_optionlist; optlst != NULL; optlst = optlst->next )
 		{
 			option_t *opt = (option_t*) optlst->data;
+			// @todo: add options to the class so that we can access them later in code form
+
+			eclass_option_t *class_opt = (eclass_option_t *) opt;
+			e->options.push_back( class_opt );
 
 			if ( opt->optiontype != OPTION_FLAGS ) {
 				// add some info to the comments.
@@ -481,6 +486,7 @@ void EClass_ImportFromClass( eclass_t *e, GSList *l_classes, class_t *bc ){
 			GSList *choicelst;
 			switch ( opt->optiontype )
 			{
+				// @todo: add boolean options
 			case OPTION_FLAGS:
 				// grab the flags.
 				for ( choicelst = opt->choices; choicelst != NULL; choicelst = choicelst->next )
@@ -870,6 +876,9 @@ void Eclass_ScanFile( char *filename ){
 						else if ( !strcmp( ptr,"flags" ) ) {
 							newoption->optiontype = OPTION_FLAGS;
 						}
+						else if( !strcmp( ptr, "bool" ) || !strcmp( ptr, "boolean" ) ) {
+							newoption->optiontype = OPTION_BOOLEAN;
+						}
 						else // string
 						{
 							newoption->optiontype = OPTION_STRING;
@@ -879,6 +888,7 @@ void Eclass_ScanFile( char *filename ){
 						{
 						case OPTION_STRING:
 						case OPTION_INTEGER:
+						case OPTION_BOOLEAN:
 							if ( !TokenAvailable() ) {
 								optioncomplete = true;
 								break;
@@ -1104,8 +1114,8 @@ void Eclass_ScanFile( char *filename ){
 #endif
 
 		// free the baselist.
-		ClearGSList( tmpclass->l_baselist );
-		Free_Class( tmpclass );
+		// ClearGSList( tmpclass->l_baselist );
+		// Free_Class( tmpclass );
 		p = g_slist_remove( p, p->data );
 	}
 

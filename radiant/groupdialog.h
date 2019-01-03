@@ -76,6 +76,7 @@ enum
 	EntTab,
 
 	EntContinent,
+	EntCheckboxesTable,
 
 	EntLast,
 };
